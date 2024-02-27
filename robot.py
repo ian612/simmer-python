@@ -164,7 +164,7 @@ class Robot():
             rotation += -rotation_speed
 
         # Move the robot
-        self.move(move_vector, rotation, walls)
+        self.move(move_vector, rotation, walls) 
 
     def move_from_command(self, walls):
         '''Move the robot based on all the movement "stored" in the drives'''
@@ -190,17 +190,31 @@ class Robot():
         self.update_outline()
 
         # Reset the position if a collision is detected
-        collisions = self.check_collision_walls(walls)
+        collisions = self.check_collision_walls_fast(walls)
         if collisions:
             self.position -= pm.Vector2.rotate(velocity, self.rotation)
             self.rotation -= rotation
             self.update_outline()
+            
+    def teleport(self, x, y, angle, walls):
+        '''Attempts to teleport the robot to a location,
+        returns True if successful
+        if collision, reverts to previous location and returns False'''
+
+        self.position = pm.Vector2(x, y)
+        self.rotation = angle
+        self.update_outline()
+
+        if not (0 < self.position.x < 96 and 0 < self.position.y < 48):
+            return False
+        # returns true if the robot isn't inside a block and if there's no intersection with walls.
+        return not utilities.in_block(self.position) and not self.check_collision_walls_fast(walls)
 
     def stop_drives(self):
         '''Stops all drives from moving, used as an emergency stop.'''
         for drive in self.drives.values():
             drive.move_buffer = 0
-
+                
     def check_collision_walls(self, walls: list):
         '''
         Checks for a collision between the robot's perimeter segments
@@ -214,6 +228,25 @@ class Robot():
                     collision_points = utilities.collision(segment_bot, segment_wall)
                     if collision_points:
                         return collision_points
+
+    def check_collision_walls_fast(self, walls: list)->bool:
+        '''
+        Checks for a collision between the robot's perimeter segments
+        and a set of wall line segments.
+        '''
+
+        # Loop through all the robot outline line segments, checking for collisions
+        for segment_bot in self.outline_global_segments:
+            for segment_wall in walls:
+                collides = utilities.check_collision_fast(
+                    segment_bot, segment_wall
+                )  # bool value
+                if collides:
+                    return True
+        
+        return False
+                    
+
 
     def command(self, cmds: list, environment: dict):
         '''
